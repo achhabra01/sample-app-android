@@ -19,17 +19,24 @@ steps:
 
   - wait
 
-  - label: "📱 Build APKs"
+  - label: "🚀 Android Build with Docker"
+    plugins:
+        - docker#v5.0.0:
+            image: "cimg/android:2024.01"
+            environment:
+              - "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
     command: |
-      echo "--- Building Debug APK"
-      chmod +x gradlew
-      ./gradlew assembleDebug
-      
-      echo "--- Building Release APK"
-      ./gradlew assembleRelease
-      
-      echo "--- Uploading APKs"
-      buildkite-agent artifact upload "app/build/outputs/apk/**/*.apk"
+        echo "+++ Java Version"
+        java -version
+        
+        echo "+++ Build Debug APK"
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+        echo "+++ Build Release APK"
+        ./gradlew assembleRelease
+      artifact_paths:
+        - "app/build/outputs/apk/**/*.apk"
 
   - wait
 
