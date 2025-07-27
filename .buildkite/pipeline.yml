@@ -1,0 +1,114 @@
+# .buildkite/pipeline.yml
+steps:
+  - label: "🔧 Setup & Lint"
+    command: |
+      echo "--- Setting up environment"
+      export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      export PATH=$JAVA_HOME/bin:$PATH
+      java -version
+      
+      echo "--- Making gradlew executable"
+      chmod +x gradlew
+      
+      echo "--- Running Lint"
+      ./gradlew lint
+      
+      echo "--- Uploading lint results"
+      if [ -f app/build/reports/lint-results-debug.html ]; then
+        buildkite-agent artifact upload "app/build/reports/lint-results-*.html"
+      fi
+    agents:
+      queue: "android"
+    plugins:
+      - docker#v5.0.0:
+          image: "cimg/android:2024.01"
+          environment:
+            - "GRADLE_OPTS=-Dorg.gradle.daemon=false"
+
+  - wait
+
+  - label: "📱 Build Debug APK"
+    command: |
+      echo "--- Setting up environment"
+      export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      export PATH=$JAVA_HOME/bin:$PATH
+      
+      echo "--- Building Debug APK"
+      chmod +x gradlew
+      ./gradlew assembleDebug
+      
+      echo "--- Renaming APK"
+      mv app/build/outputs/apk/debug/app-debug.apk \
+         app/build/outputs/apk/debug/HelloWorld-build-${BUILDKITE_BUILD_NUMBER}-debug.apk
+      
+      echo "--- Uploading Debug APK"
+      buildkite-agent artifact upload "app/build/outputs/apk/debug/*.apk"
+    agents:
+      queue: "android"
+    plugins:
+      - docker#v5.0.0:
+          image: "cimg/android:2024.01"
+          environment:
+            - "GRADLE_OPTS=-Dorg.gradle.daemon=false"
+
+  - label: "📦 Build Release APK"
+    command: |
+      echo "--- Setting up environment"
+      export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+      export PATH=$JAVA_HOME/bin:$PATH
+      
+      echo "--- Building Release APK"
+      chmod +x gradlew
+      ./gradlew assembleRelease
+      
+      echo "--- Renaming APK"
+      if [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+        mv app/build/outputs/apk/release/app-release-unsigned.apk \
+           app/build/outputs/apk/release/HelloWorld-build-${BUILDKITE_BUILD_NUMBER}-release-unsigned.apk
+      fi
+      
+      echo "--- Uploading Release APK"
+      buildkite-agent artifact upload "app/build/outputs/apk/release/*.apk"
+    agents:
+      queue: "android"
+    plugins:
+      - docker#v5.0.0:
+          image: "cimg/android:2024.01"
+          environment:
+            - "GRADLE_OPTS=-Dorg.gradle.daemon=false"
+
+  - wait
+
+  - label: "📊 Build Summary"
+    command: |
+      echo "### Build Summary 📱"
+      echo ""
+      echo "- **Build Number**: ${BUILDKITE_BUILD_NUMBER}"
+      echo "- **Branch**: ${BUILDKITE_BRANCH}"
+      echo "- **Commit**: ${BUILDKITE_COMMIT:0:7}"
+      echo "- **Author**: ${BUILDKITE_BUILD_AUTHOR}"
+      echo ""
+      echo "#### Artifacts Generated:"
+      buildkite-agent artifact list
+      echo ""
+      echo "✅ Build completed successfully!"
+    agents:
+      queue: "android"
+
+# Alternative: Using a single step with parallel commands
+# steps:
+#   - label: "🚀 Android CI Build"
+#     commands:
+#       - "chmod +x gradlew"
+#       - "echo '--- Running Lint' && ./gradlew lint"
+#       - "echo '--- Building Debug APK' && ./gradlew assembleDebug"
+#       - "echo '--- Building Release APK' && ./gradlew assembleRelease"
+#     artifact_paths:
+#       - "app/build/outputs/apk/**/*.apk"
+#       - "app/build/reports/lint-results-*.html"
+#     plugins:
+#       - docker#v5.0.0:
+#           image: "cimg/android:2024.01"
+#           environment:
+#             - "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+#             - "GRADLE_OPTS=-Dorg.gradle.daemon=false"
