@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Set the content view to use Jetpack Compose
         setContent {
             SampleappandroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
